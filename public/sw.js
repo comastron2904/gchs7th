@@ -1,7 +1,6 @@
-const CACHE_NAME = 'gchs-dorm-v1';
+const CACHE_NAME = 'gchs-dorm-v2';
 const STATIC_ASSETS = ['/', '/student', '/teacher'];
 
-// 설치 시 주요 페이지 캐시
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
@@ -9,7 +8,6 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// 이전 캐시 정리
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -19,7 +17,6 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// 네트워크 우선, 실패 시 캐시 사용
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
@@ -35,21 +32,44 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// 푸시 알림
+// ── 푸시 알림 수신 ──────────────────────────────────────────────
 self.addEventListener('push', e => {
   if (!e.data) return;
-  const data = e.data.json();
-  e.waitUntil(
-    self.registration.showNotification(data.title || '벌점 알림', {
-      body: data.body || '새로운 벌점이 등록되었습니다.',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'demerit-notification',
-    })
-  );
+  let data = {};
+  try { data = e.data.json(); } catch { data = { title: '벌점 알림', body: e.data.text() }; }
+
+  const title = data.title || '기숙사 벌점 알림';
+  const options = {
+    body: data.body || '새로운 벌점이 등록되었습니다.',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || 'demerit-notification',
+    renotify: true,
+    requireInteraction: false,
+    data: { url: data.url || '/student', studentId: data.studentId },
+    actions: [
+      { action: 'view', title: '확인하기' },
+      { action: 'close', title: '닫기' }
+    ]
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.openWindow('/student'));
+  if (e.action === 'close') return;
+
+  const targetUrl = (e.notification.data && e.notification.data.url) || '/student';
+
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes('/student') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(targetUrl);
+    })
+  );
 });
