@@ -35,6 +35,13 @@
   transition: background .15s;
 }
 .btnPrimary:hover { background: #3B6FD8; }
+.btnSave {
+  display: flex; align-items: center; gap: 6px; background: #22C55E; color: white;
+  border: none; border-radius: 9px; padding: 0 18px; height: 36px;
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
+  transition: background .15s;
+}
+.btnSave:hover { background: #16A34A; }
 
 .statsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; max-width: 400px; }
 .statCard { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 12px 14px; }
