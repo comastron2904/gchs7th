@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import styles from './page.module.css'
@@ -25,6 +25,14 @@ interface DemeritEntry {
   created_at?: string
 }
 
+// Base64URL → Uint8Array (VAPID 공개키 변환용)
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+}
+
 export default function StudentPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -32,6 +40,9 @@ export default function StudentPage() {
   const [student, setStudent] = useState<Student | null>(null)
   const [demerits, setDemerits] = useState<DemeritEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [pushStatus, setPushStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported'>('idle')
+  const [pushMsg, setPushMsg] = useState('')
+  const studentIdRef = useRef<string>('')
 
   const loadData = useCallback(async (id: string) => {
     setLoading(true)
@@ -48,8 +59,101 @@ export default function StudentPage() {
     const raw = sessionStorage.getItem('dm_student')
     if (!raw) { router.push('/'); return }
     const { id } = JSON.parse(raw)
+    studentIdRef.current = id
     loadData(id)
   }, [router, loadData])
+
+  // 로그인 직후 Push 구독 상태 초기화
+  useEffect(() => {
+    if (!student) return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('unsupported')
+      return
+    }
+    const perm = Notification.permission
+    if (perm === 'granted') {
+      setPushStatus('granted')
+      // 이미 허용 → 기기 등록 갱신 (앱 재설치 등 대비)
+      registerPushSubscription(student.student_id)
+    } else if (perm === 'denied') {
+      setPushStatus('denied')
+    } else {
+      setPushStatus('idle')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student])
+
+  /** Service Worker를 통해 Push 구독 생성 후 서버에 저장 */
+  async function registerPushSubscription(studentId: string) {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      let sub = existing
+
+      if (!sub) {
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidKey) { console.warn('VAPID public key 없음'); return }
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        })
+      }
+
+      const subJson = sub.toJSON()
+      const res = await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, subscription: subJson }),
+      })
+
+      if (res.ok) {
+        setPushMsg('✅ 이 기기에서 벌점 알림을 받습니다')
+      } else {
+        setPushMsg('⚠ 알림 등록 중 오류가 발생했습니다')
+      }
+    } catch (err) {
+      console.error('push register error:', err)
+      setPushMsg('⚠ 알림 등록에 실패했습니다')
+    }
+  }
+
+  /** 알림 권한 요청 버튼 클릭 */
+  async function requestPushPermission() {
+    if (!student) return
+    setPushStatus('requesting')
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission === 'granted') {
+        setPushStatus('granted')
+        await registerPushSubscription(student.student_id)
+      } else {
+        setPushStatus('denied')
+        setPushMsg('알림이 거부되었습니다. 브라우저 설정에서 허용해 주세요.')
+      }
+    } catch (err) {
+      console.error('permission error:', err)
+      setPushStatus('denied')
+    }
+  }
+
+  /** 알림 구독 해제 */
+  async function unsubscribePush() {
+    if (!student) return
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) await sub.unsubscribe()
+      await fetch('/api/push-subscribe', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: student.student_id }),
+      })
+      setPushStatus('idle')
+      setPushMsg('알림 구독이 해제되었습니다')
+    } catch (err) {
+      console.error('unsubscribe error:', err)
+    }
+  }
 
   function pointColor(p: number) {
     if (p === 0) return '#22C55E'
@@ -94,6 +198,39 @@ export default function StudentPage() {
           로그아웃
         </button>
       </div>
+
+      {/* ── Push 알림 배너 ── */}
+      {pushStatus !== 'unsupported' && (
+        <div className={styles.pushBanner}>
+          {pushStatus === 'idle' && (
+            <div className={styles.pushIdle}>
+              <div className={styles.pushIdleText}>
+                <span className={styles.pushBell}>🔔</span>
+                <div>
+                  <div className={styles.pushIdleTitle}>벌점 알림 받기</div>
+                  <div className={styles.pushIdleSub}>벌점 등록 시 이 기기로 즉시 알림을 받을 수 있어요</div>
+                </div>
+              </div>
+              <button className={styles.pushBtn} onClick={requestPushPermission}>허용하기</button>
+            </div>
+          )}
+          {pushStatus === 'requesting' && (
+            <div className={styles.pushRequesting}>알림 권한 요청 중...</div>
+          )}
+          {pushStatus === 'granted' && (
+            <div className={styles.pushGranted}>
+              <span>🔔 벌점 알림이 이 기기에 등록되었습니다</span>
+              <button className={styles.pushOffBtn} onClick={unsubscribePush}>해제</button>
+            </div>
+          )}
+          {pushStatus === 'denied' && (
+            <div className={styles.pushDenied}>
+              🔕 알림이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해 주세요.
+            </div>
+          )}
+          {pushMsg && <div className={styles.pushMsg}>{pushMsg}</div>}
+        </div>
+      )}
 
       {/* 학생 정보 카드 */}
       <div className={styles.profileCard}>
