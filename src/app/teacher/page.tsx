@@ -83,28 +83,28 @@ export default function TeacherPage() {
   }, [teacherId, loadStudents, loadRules])
 
   // entries 기준으로 학생별 벌점을 DB에 반영하고 화면도 업데이트
-  const syncPoints = useCallback(async (entries: DemeritEntry[]) => {
-    // 학생별 행 수 집계 (= 전체 벌점)
-    const countMap: Record<string, number> = {}
-    entries.forEach(e => {
-      countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
+const syncPoints = useCallback(async (entries: DemeritEntry[], affectedIds?: string[]) => {
+  const countMap: Record<string, number> = {}
+  entries.forEach(e => {
+    countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
+  })
+
+  const targetIds = affectedIds ?? Object.keys(countMap)
+
+  await Promise.all(
+    targetIds.map(sid => {
+      const pts = countMap[sid] ?? 0
+      return supabase.from('students').update({ points: pts }).eq('student_id', sid)
     })
+  )
 
-    // entries에 등장한 학생만 DB 업데이트
-    await Promise.all(
-      Object.entries(countMap).map(([sid, cnt]) =>
-        supabase.from('students').update({ points: cnt }).eq('student_id', sid)
-      )
-    )
-
-    // 화면 즉시 반영 (DB 재조회 없이)
-    setStudents(prev => prev.map(s => {
-      if (s.student_id in countMap) {
-        return { ...s, points: countMap[s.student_id] }
-      }
-      return s
-    }))
-  }, [supabase])
+  setStudents(prev => prev.map(s => {
+    if (targetIds.includes(s.student_id)) {
+      return { ...s, points: countMap[s.student_id] ?? 0 }
+    }
+    return s
+  }))
+}, [supabase])
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
