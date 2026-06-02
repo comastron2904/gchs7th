@@ -91,3 +91,70 @@
   color: var(--warn); border: 1px solid #F8D9B5;
   border-radius: 5px; padding: 1px 7px;
 }
+
+/* ── Push 알림 배너 ─────────────────────────────────── */
+.pushBanner {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  margin-bottom: 1.25rem;
+}
+
+.pushIdle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pushIdleText {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.pushBell { font-size: 20px; flex-shrink: 0; }
+.pushIdleTitle {
+  font-size: 14px; font-weight: 700; color: var(--text-main);
+}
+.pushIdleSub {
+  font-size: 12px; color: var(--text-hint); margin-top: 2px;
+}
+.pushBtn {
+  flex-shrink: 0;
+  padding: 0 16px; height: 34px;
+  background: var(--student); color: white;
+  border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: opacity .15s;
+}
+.pushBtn:hover { opacity: .85; }
+
+.pushRequesting {
+  font-size: 13px; color: var(--text-hint); text-align: center; padding: 4px 0;
+}
+
+.pushGranted {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: #16A34A; font-weight: 500; gap: 8px;
+}
+.pushOffBtn {
+  flex-shrink: 0;
+  padding: 0 12px; height: 28px;
+  background: none; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 12px; color: var(--text-hint);
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.pushOffBtn:hover { border-color: var(--danger-border); color: var(--danger); }
+
+.pushDenied {
+  font-size: 13px; color: var(--text-hint);
+}
+
+.pushMsg {
+  font-size: 12px; color: var(--text-hint);
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
