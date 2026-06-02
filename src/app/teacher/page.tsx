@@ -161,7 +161,7 @@ export default function TeacherPage() {
       // 규정 조항 바뀌면 reason 자동갱신
       if (field === 'rule_no') {
         const ruleIdx = (value as number) - 1
-        updated.reason = value > 0 ? (rules[ruleIdx] ?? '') : ''
+        updated.reason = (value as number) > 0 ? (rules[ruleIdx] ?? '') : ''
       }
       return updated
     }))
@@ -249,7 +249,7 @@ export default function TeacherPage() {
                 <input placeholder="이름 또는 학번 검색" value={search1} onChange={e => setSearch1(e.target.value)} />
               </div>
             </div>
-            <table>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th className={styles.t1ColId}>학번</th>
@@ -319,7 +319,7 @@ export default function TeacherPage() {
           </div>
 
           <div className={styles.tableWrap}>
-            <table>
+            <table className={styles.table}>
               <thead>
                 <tr>
                   <th className={styles.t2ColId}>학번</th>
