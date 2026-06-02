@@ -31,6 +31,8 @@ export default function LoginPage() {
     setSError('')
     if (!sId || !sName) { setSError('학번과 이름을 모두 입력해 주세요.'); return }
     if (!/^\d{5}$/.test(sId)) { setSError('학번은 5자리 숫자로 입력해 주세요.'); return }
+    const { data } = await supabase.from('students').select('student_id, name').eq('student_id', sId).eq('name', sName).single()
+    if (!data) { setSError('학번 또는 이름이 올바르지 않습니다.'); return }
     sessionStorage.setItem('dm_student', JSON.stringify({ id: sId, name: sName }))
     router.push('/student')
   }
