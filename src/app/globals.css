@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #F4F2EE;
+  --surface: #FFFFFF;
+  --surface2: #FAFAFA;
+  --border: #E4E0D8;
+  --border2: #DDD9D0;
+
+  --text-main: #1A1A2E;
+  --text-sub: #5A5870;
+  --text-hint: #9A97A0;
+  --text-placeholder: #B8B5BE;
+
+  --student: #4F7FE8;
+  --student-dim: #EBF1FD;
+  --student-border: #C5D8F8;
+
+  --teacher: #E8913A;
+  --teacher-dim: #FDF3EA;
+  --teacher-border: #F8D9B5;
+
+  --danger: #E05252;
+  --danger-light: #FDEAEA;
+  --danger-border: #F8C5C5;
+
+  --warn: #E8913A;
+  --success: #22C55E;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #1A1A2E;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }

@@ -1,0 +1,141 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+.wrapper {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.header { text-align: center; margin-bottom: 2.5rem; }
+.logoRow { display: flex; align-items: center; justify-content: center; gap: 11px; margin-bottom: 0.4rem; }
+.logoMark {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: var(--student);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(79,127,232,0.35);
+}
+.siteTitle { font-size: 1.55rem; font-weight: 900; color: var(--text-main); letter-spacing: -0.03em; }
+.siteSubtitle { font-family: 'IBM Plex Mono', monospace; font-size: 0.67rem; color: var(--text-hint); letter-spacing: 0.13em; text-transform: uppercase; margin-top: 2px; }
+
+/* Tabs */
+.tabSelector { display: flex; background: #E8E5DF; border-radius: 12px; padding: 4px; margin-bottom: 1.25rem; gap: 4px; width: 100%; }
+.tabBtn {
+  flex: 1; padding: 0.55rem; border: none; border-radius: 9px;
+  font-size: 0.875rem; font-family: 'Noto Sans KR', sans-serif; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; color: var(--text-hint); background: none;
+}
+.tabBtn:hover { color: var(--text-sub); }
+.activeStudent { background: white; color: var(--student); box-shadow: 0 1px 4px rgba(0,0,0,0.1); font-weight: 700; }
+.activeTeacher { background: white; color: var(--teacher); box-shadow: 0 1px 4px rgba(0,0,0,0.1); font-weight: 700; }
+
+/* Card */
+.card {
+  background: var(--surface); border-radius: 18px;
+  border: 1px solid var(--border); padding: 1.75rem; width: 100%;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+}
+.cardHeader { margin-bottom: 1.5rem; }
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.1em; padding: 3px 10px; border-radius: 20px; margin-bottom: 0.75rem; text-transform: uppercase;
+}
+.badgeStudent { background: var(--student-dim); color: var(--student); border: 1px solid var(--student-border); }
+.badgeTeacher { background: var(--teacher-dim); color: var(--teacher); border: 1px solid var(--teacher-border); }
+.dot { width: 5px; height: 5px; border-radius: 50%; }
+.dotStudent { background: var(--student); }
+.dotTeacher { background: var(--teacher); }
+.cardTitle { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+.cardDesc { font-size: 0.8rem; color: var(--text-hint); line-height: 1.6; }
+
+/* Fields */
+.field { margin-bottom: 0.9rem; }
+.field label { display: block; font-size: 0.73rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.4rem; }
+.field input {
+  width: 100%; padding: 0.65rem 0.9rem;
+  border: 1.5px solid var(--border2); border-radius: 9px;
+  font-size: 0.88rem; font-family: 'Noto Sans KR', sans-serif;
+  color: var(--text-main); background: #FAFAFA; outline: none; transition: border-color 0.2s;
+}
+.field input::placeholder { color: var(--text-placeholder); }
+.studentInput:focus { border-color: var(--student-border) !important; background: white; }
+.teacherInput:focus { border-color: var(--teacher-border) !important; background: white; }
+
+/* Buttons */
+.btnMain {
+  width: 100%; padding: 0.75rem; border: none; border-radius: 10px;
+  font-size: 0.9rem; font-weight: 700; font-family: 'Noto Sans KR', sans-serif;
+  cursor: pointer; margin-top: 0.4rem; letter-spacing: 0.01em; transition: all 0.15s;
+}
+.btnStudent { background: var(--student); color: white; }
+.btnStudent:hover { background: #3B6FD8; transform: translateY(-1px); }
+.btnTeacher { background: var(--teacher); color: white; }
+.btnTeacher:hover { background: #D4823A; transform: translateY(-1px); }
+
+/* Error */
+.errorMsg {
+  font-size: 0.78rem; color: var(--danger);
+  background: var(--danger-light); border: 1px solid var(--danger-border);
+  padding: 0.55rem 0.8rem; border-radius: 8px; margin-top: 0.5rem;
+}
+
+/* Notice */
+.noticeBox {
+  background: var(--student-dim); border: 1px solid var(--student-border);
+  border-radius: 9px; padding: 0.6rem 0.85rem;
+  font-size: 0.76rem; color: var(--student); line-height: 1.5; margin-top: 0.9rem;
+}
+.teacherNotice { background: var(--teacher-dim); border-color: var(--teacher-border); color: var(--teacher); }
+
+/* Choose */
+.chooseBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 0.75rem; }
+.chooseBtn {
+  padding: 1rem 0.65rem; border: 1.5px solid var(--border); border-radius: 12px;
+  background: #FAFAFA; cursor: pointer; text-align: center; font-family: 'Noto Sans KR', sans-serif;
+  transition: all 0.18s;
+}
+.chooseBtn:hover { border-color: var(--teacher-border); background: var(--teacher-dim); transform: translateY(-1px); }
+.cbIcon { font-size: 1.4rem; margin-bottom: 0.4rem; }
+.cbLabel { font-size: 0.79rem; font-weight: 600; color: var(--text-main); }
+.cbSub { font-size: 0.69rem; color: var(--text-hint); margin-top: 2px; }
+
+/* Back */
+.backLink {
+  font-size: 0.77rem; color: var(--text-hint); cursor: pointer; background: none; border: none;
+  font-family: 'Noto Sans KR', sans-serif; display: inline-flex; align-items: center; gap: 4px;
+  margin-bottom: 1rem; padding: 0; transition: color 0.15s;
+}
+.backLink:hover { color: var(--teacher); }
+
+/* Footer */
+.footer { margin-top: 1.75rem; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 0.66rem; color: var(--text-placeholder); letter-spacing: 0.04em; }
+
+@media (max-width: 480px) {
+  .card { padding: 1.5rem; }
+  .siteTitle { font-size: 1.3rem; }
+}
