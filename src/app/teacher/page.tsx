@@ -218,6 +218,12 @@ export default function TeacherPage() {
   }
 
   async function saveDemerits() {
+    // 저장 직전 기존 DB 스냅샷 (신규 추가된 학생 감지용)
+    const { data: prevRows } = await supabase
+      .from('demerit_entries')
+      .select('student_id')
+    const prevStudentIds = new Set((prevRows ?? []).map((r: { student_id: string }) => r.student_id))
+
     // 전체 삭제 후 현재 state로 교체
     await supabase.from('demerit_entries').delete().neq('id', '')
 
@@ -235,7 +241,41 @@ export default function TeacherPage() {
       const { error } = await supabase.from('demerit_entries').insert(rows)
       if (error) { showToast('저장 중 오류가 발생했습니다'); return }
     }
-    showToast(`${demeritEntries.length}건 저장됐습니다`)
+
+    // ── 새로 벌점이 추가된 학생들에게 Push 알림 발송 ──
+    // 이번 저장에서 등장하는 학생 ID 집계
+    const nowMap: Record<string, DemeritEntry[]> = {}
+    demeritEntries.forEach(e => {
+      if (!nowMap[e.student_id]) nowMap[e.student_id] = []
+      nowMap[e.student_id].push(e)
+    })
+
+    const notifyTargets = Object.entries(nowMap).filter(([sid, entries]) => {
+      // 이번에 처음 등장하거나 이전보다 건수가 많아진 학생
+      if (!prevStudentIds.has(sid)) return true
+      const prevCount = Array.from(prevStudentIds).filter(s => s === sid).length
+      return entries.length > prevCount
+    })
+
+    // 각 학생에게 비동기 알림 (UI 블로킹 없이)
+    notifyTargets.forEach(([sid, entries]) => {
+      const latest = entries[entries.length - 1]
+      const studentName = latest.name || sid
+      const reason = latest.reason || latest.detail || '규정 위반'
+      const total = entries.length
+
+      fetch('/api/push-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: sid,
+          title: `📋 벌점 알림 — ${studentName}`,
+          body: `${reason} (누적 ${total}점)`,
+        }),
+      }).catch(err => console.warn('push notify 실패:', err))
+    })
+
+    showToast(`${demeritEntries.length}건 저장됐습니다${notifyTargets.length > 0 ? ` · ${notifyTargets.length}명에게 알림 전송` : ''}`)
   }
 
   function updateRuleText(idx: number, val: string) {
