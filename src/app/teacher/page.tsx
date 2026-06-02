@@ -14,15 +14,14 @@ interface Student {
   points: number
 }
 
-// 벌점 관리 탭의 행 단위 기록
 interface DemeritEntry {
-  id: string           // 로컬 고유 키
+  id: string
   student_id: string
   name: string
   room: string
   rule_no: number
-  reason: string       // 자동입력
-  detail: string       // 직접입력
+  reason: string
+  detail: string
   process_type: string
   teacher: string
   note: string
@@ -39,12 +38,10 @@ export default function TeacherPage() {
   const [search1, setSearch1] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // ── 벌점 관리 상태 ──
   const [demeritEntries, setDemeritEntries] = useState<DemeritEntry[]>([])
   const [showStudentPicker, setShowStudentPicker] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
 
-  // ── 학생 정보 탭 모달 ──
   const [showAdd, setShowAdd] = useState(false)
   const [inpId, setInpId] = useState('')
   const [inpName, setInpName] = useState('')
@@ -54,10 +51,7 @@ export default function TeacherPage() {
   const [showDel, setShowDel] = useState(false)
   const [pendingDel, setPendingDel] = useState<Student | null>(null)
 
-  // ── 규정 조항 탭 ──
   const [newRule, setNewRule] = useState('')
-
-  // ── 토스트 ──
   const [toast, setToast] = useState('')
   const [toastShow, setToastShow] = useState(false)
 
@@ -88,6 +82,30 @@ export default function TeacherPage() {
     if (teacherId) { loadStudents(); loadRules() }
   }, [teacherId, loadStudents, loadRules])
 
+  // entries 기준으로 학생별 벌점을 DB에 반영하고 화면도 업데이트
+  const syncPoints = useCallback(async (entries: DemeritEntry[]) => {
+    // 학생별 행 수 집계 (= 전체 벌점)
+    const countMap: Record<string, number> = {}
+    entries.forEach(e => {
+      countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
+    })
+
+    // entries에 등장한 학생만 DB 업데이트
+    await Promise.all(
+      Object.entries(countMap).map(([sid, cnt]) =>
+        supabase.from('students').update({ points: cnt }).eq('student_id', sid)
+      )
+    )
+
+    // 화면 즉시 반영 (DB 재조회 없이)
+    setStudents(prev => prev.map(s => {
+      if (s.student_id in countMap) {
+        return { ...s, points: countMap[s.student_id] }
+      }
+      return s
+    }))
+  }, [supabase])
+
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
   }
@@ -103,7 +121,6 @@ export default function TeacherPage() {
     !search1 || s.student_id.includes(search1) || s.name.includes(search1)
   )
 
-  // ── 학생 정보 탭: 필드 업데이트 ──
   async function updateStudentField(id: string, field: string, value: string | number) {
     await supabase.from('students').update({ [field]: value }).eq('student_id', id)
     setStudents(prev => prev.map(s => s.student_id === id ? { ...s, [field]: value } : s))
@@ -132,12 +149,10 @@ export default function TeacherPage() {
     showToast('학생이 삭제됐습니다')
   }
 
-  // ── 벌점 관리 탭 ──
-
-  // 학생 선택 → 새 행 추가
+  // 학생 선택 → 새 행 추가 (동일 학생 여럿 추가 가능)
   function pickStudent(s: Student) {
     const entry: DemeritEntry = {
-      id: `${Date.now()}-${s.student_id}`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       student_id: s.student_id,
       name: s.name,
       room: s.room,
@@ -148,17 +163,17 @@ export default function TeacherPage() {
       teacher: teacherId,
       note: '',
     }
-    setDemeritEntries(prev => [...prev, entry])
+    const next = [...demeritEntries, entry]
+    setDemeritEntries(next)
+    syncPoints(next)
     setShowStudentPicker(false)
     setPickerSearch('')
   }
 
-  // 행 필드 업데이트
   function updateEntry(id: string, field: keyof DemeritEntry, value: string | number) {
     setDemeritEntries(prev => prev.map(e => {
       if (e.id !== id) return e
       const updated = { ...e, [field]: value }
-      // 규정 조항 바뀌면 reason 자동갱신
       if (field === 'rule_no') {
         const ruleIdx = (value as number) - 1
         updated.reason = (value as number) > 0 ? (rules[ruleIdx] ?? '') : ''
@@ -167,12 +182,22 @@ export default function TeacherPage() {
     }))
   }
 
-  // 행 삭제
+  // 행 삭제 → 벌점 자동 재계산
   function removeEntry(id: string) {
-    setDemeritEntries(prev => prev.filter(e => e.id !== id))
+    const removed = demeritEntries.find(e => e.id === id)
+    const next = demeritEntries.filter(e => e.id !== id)
+    setDemeritEntries(next)
+
+    if (removed) {
+      // 삭제 후 해당 학생의 남은 행 수 계산
+      const remaining = next.filter(e => e.student_id === removed.student_id).length
+      supabase.from('students').update({ points: remaining }).eq('student_id', removed.student_id)
+      setStudents(prev => prev.map(s =>
+        s.student_id === removed.student_id ? { ...s, points: remaining } : s
+      ))
+    }
   }
 
-  // ── 규정 조항 탭 ──
   function updateRuleText(idx: number, val: string) {
     const updated = [...rules]; updated[idx] = val
     setRules(updated); saveRulesToDB(updated)
@@ -207,7 +232,6 @@ export default function TeacherPage() {
   return (
     <div className={styles.page}>
 
-      {/* Nav */}
       <div className={styles.nav}>
         <button className={`${styles.navBtn} ${activeTab === 'info' ? styles.navActive : ''}`} onClick={() => setActiveTab('info')}>👤 학생 정보</button>
         <button className={`${styles.navBtn} ${activeTab === 'demerit' ? styles.navActive : ''}`} onClick={() => setActiveTab('demerit')}>⚠️ 벌점 관리</button>
@@ -310,7 +334,7 @@ export default function TeacherPage() {
               </div>
               <div>
                 <div className={styles.pageTitle}>벌점 관리</div>
-                <div className={styles.pageSub}>학생 선택 후 규정 조항 및 사유 입력</div>
+                <div className={styles.pageSub}>학생의 행 수 = 해당 학생 벌점 (자동 반영)</div>
               </div>
             </div>
             <button className={styles.btnPrimary} onClick={() => { setShowStudentPicker(true); setPickerSearch('') }}>
@@ -337,9 +361,7 @@ export default function TeacherPage() {
               <tbody>
                 {demeritEntries.length === 0 ? (
                   <tr className={styles.emptyRow}>
-                    <td colSpan={10}>
-                      상단 [+ 학생 추가] 버튼으로 학생을 선택하세요
-                    </td>
+                    <td colSpan={10}>상단 [+ 학생 추가] 버튼으로 학생을 선택하세요</td>
                   </tr>
                 ) : demeritEntries.map(e => (
                   <tr key={e.id}>
@@ -358,44 +380,22 @@ export default function TeacherPage() {
                         ))}
                       </select>
                     </td>
-                    <td
-                      className={styles.reasonCell}
-                      title={e.reason}
-                    >
+                    <td className={styles.reasonCell} title={e.reason}>
                       {e.reason || '—'}
                     </td>
                     <td>
-                      <input
-                        className={styles.editable}
-                        defaultValue={e.detail}
-                        placeholder="직접 입력"
-                        onBlur={ev => updateEntry(e.id, 'detail', ev.target.value)}
-                      />
+                      <input className={styles.editable} defaultValue={e.detail} placeholder="직접 입력" onBlur={ev => updateEntry(e.id, 'detail', ev.target.value)} />
                     </td>
                     <td>
-                      <select
-                        className={styles.editable}
-                        value={e.process_type}
-                        onChange={ev => updateEntry(e.id, 'process_type', ev.target.value)}
-                      >
+                      <select className={styles.editable} value={e.process_type} onChange={ev => updateEntry(e.id, 'process_type', ev.target.value)}>
                         {PROCESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </td>
                     <td>
-                      <input
-                        className={styles.editable}
-                        defaultValue={e.teacher}
-                        placeholder="담당교사"
-                        onBlur={ev => updateEntry(e.id, 'teacher', ev.target.value)}
-                      />
+                      <input className={styles.editable} defaultValue={e.teacher} placeholder="담당교사" onBlur={ev => updateEntry(e.id, 'teacher', ev.target.value)} />
                     </td>
                     <td>
-                      <input
-                        className={styles.editable}
-                        defaultValue={e.note}
-                        placeholder="비고"
-                        onBlur={ev => updateEntry(e.id, 'note', ev.target.value)}
-                      />
+                      <input className={styles.editable} defaultValue={e.note} placeholder="비고" onBlur={ev => updateEntry(e.id, 'note', ev.target.value)} />
                     </td>
                     <td>
                       <button className={styles.btnDel} onClick={() => removeEntry(e.id)}>
@@ -439,7 +439,7 @@ export default function TeacherPage() {
         </>
       )}
 
-      {/* ── 학생 선택 팝업 (벌점 관리 탭) ── */}
+      {/* ── 학생 선택 팝업 ── */}
       {showStudentPicker && (
         <div className={styles.overlay} onClick={() => setShowStudentPicker(false)}>
           <div className={styles.pickerModal} onClick={e => e.stopPropagation()}>
@@ -449,12 +449,7 @@ export default function TeacherPage() {
             </div>
             <div className={styles.pickerSearch}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B8B5BE" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input
-                autoFocus
-                placeholder="이름 또는 학번 검색"
-                value={pickerSearch}
-                onChange={e => setPickerSearch(e.target.value)}
-              />
+              <input autoFocus placeholder="이름 또는 학번 검색" value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} />
             </div>
             <div className={styles.pickerList}>
               {pickerFiltered.length === 0 ? (
@@ -470,7 +465,7 @@ export default function TeacherPage() {
         </div>
       )}
 
-      {/* ── 학생 추가 모달 (학생 정보 탭) ── */}
+      {/* ── 학생 추가 모달 ── */}
       {showAdd && (
         <div className={styles.overlay}>
           <div className={styles.modal}>
@@ -524,7 +519,6 @@ export default function TeacherPage() {
         </div>
       )}
 
-      {/* Toast */}
       <div className={`toast ${toastShow ? 'show' : ''}`}>{toast}</div>
     </div>
   )
