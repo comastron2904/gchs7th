@@ -1,6 +1,5 @@
 .page { background: var(--bg); min-height: 100vh; padding: 1.5rem 2rem; }
 
-/* Nav */
 .nav {
   display: flex; gap: 4px; margin-bottom: 1.5rem;
   background: white; border: 1px solid var(--border);
@@ -14,7 +13,6 @@
 .navBtn:hover:not(.navActive) { background: var(--bg); color: var(--text-sub); }
 .navActive { background: var(--student); color: white; }
 
-/* Topbar */
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
 .topbarLeft { display: flex; align-items: center; gap: 10px; }
 .logoMark {
@@ -38,7 +36,6 @@
 }
 .btnPrimary:hover { background: #3B6FD8; }
 
-/* Stats */
 .statsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; max-width: 400px; }
 .statCard { background: white; border-radius: 10px; border: 1px solid var(--border); padding: 12px 14px; }
 .statLabel { font-size: 11px; color: var(--text-hint); margin-bottom: 4px; font-weight: 500; }
@@ -46,7 +43,6 @@
 .statWarn { color: var(--warn); }
 .statDanger { color: var(--danger); }
 
-/* Table */
 .tableWrap { background: white; border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
 .tableToolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #F0EDE8; }
 .tableTitle { font-size: 13px; font-weight: 700; color: var(--text-main); }
@@ -57,18 +53,17 @@
 .searchBox input { background: none; border: none; outline: none; font-size: 12px; color: var(--text-main); width: 150px; font-family: inherit; }
 .searchBox input::placeholder { color: var(--text-placeholder); }
 
-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-thead tr { background: #F9F8F5; }
-th {
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.table thead tr { background: #F9F8F5; }
+.table th {
   padding: 11px 14px; text-align: left; font-size: 12px; font-weight: 700;
   color: #3A3850; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: middle;
 }
 .thSub { font-size: 10px; font-weight: 500; color: var(--text-placeholder); margin-top: 2px; }
-td { padding: 10px 14px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid #F2F0EC; vertical-align: middle; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #FAFAF8; }
+.table td { padding: 10px 14px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid #F2F0EC; vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #FAFAF8; }
 
-/* Tab 1 columns */
 .t1ColId     { width: 9%; }
 .t1ColName   { width: 9%; }
 .t1ColRoom   { width: 9%; }
@@ -77,7 +72,6 @@ tr:hover td { background: #FAFAF8; }
 .t1ColPts    { width: 9%; }
 .t1ColDel    { width: 5%; }
 
-/* Tab 2 columns */
 .t2ColId      { width: 8%; }
 .t2ColName    { width: 7%; }
 .t2ColRoom    { width: 6%; }
@@ -94,7 +88,6 @@ tr:hover td { background: #FAFAF8; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* Student picker modal */
 .pickerModal {
   background: white; border-radius: 16px; padding: 1.5rem;
   width: 100%; max-width: 380px; border: 1px solid var(--border);
@@ -110,10 +103,7 @@ tr:hover td { background: #FAFAF8; }
   font-size: 13px; color: var(--text-main); width: 100%; font-family: inherit;
 }
 .pickerSearch input::placeholder { color: var(--text-placeholder); }
-.pickerList {
-  overflow-y: auto; flex: 1;
-  border: 1px solid var(--border); border-radius: 10px;
-}
+.pickerList { overflow-y: auto; flex: 1; border: 1px solid var(--border); border-radius: 10px; }
 .pickerItem {
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; padding: 11px 14px; background: none; border: none;
@@ -141,18 +131,10 @@ select.editable { cursor: pointer; font-size: 12px; }
 .demerMid  { color: var(--warn); }
 .demerHigh { color: var(--danger); }
 
-.btnSm {
-  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border);
-  background: white; cursor: pointer; display: flex; align-items: center;
-  justify-content: center; font-size: 13px; color: var(--text-sub); font-family: inherit; flex-shrink: 0;
-}
-.btnSm:hover { background: var(--teacher-dim); border-color: var(--teacher-border); color: var(--warn); }
-.btnSmPlus:hover { background: var(--danger-light); border-color: var(--danger-border); color: var(--danger); }
 .btnDel { background: none; border: none; cursor: pointer; color: var(--text-placeholder); padding: 3px; border-radius: 5px; display: flex; align-items: center; }
 .btnDel:hover { color: var(--danger); background: var(--danger-light); }
 .emptyRow td { text-align: center; padding: 2.5rem; color: var(--text-placeholder); font-size: 13px; }
 
-/* Rules tab */
 .rulesHeader { margin-bottom: 1rem; }
 .rulesTitle { font-size: 15px; font-weight: 700; color: var(--text-main); }
 .rulesDesc { font-size: 12px; color: var(--text-hint); margin-top: 4px; }
@@ -194,7 +176,6 @@ select.editable { cursor: pointer; font-size: 12px; }
 }
 .btnAddRule:hover { background: #3B6FD8; }
 
-/* Modal */
 .overlay {
   position: fixed; inset: 0; background: rgba(26,26,46,0.45);
   display: flex; align-items: center; justify-content: center; padding: 2rem; z-index: 100;
