@@ -82,26 +82,48 @@ export default function TeacherPage() {
     if (teacherId) { loadStudents(); loadRules() }
   }, [teacherId, loadStudents, loadRules])
 
-  useEffect(() => {
-  if (activeTab !== 'demerit') return
-
-  const countMap: Record<string, number> = {}
-  demeritEntries.forEach(e => {
-    countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
-  })
-
-  students.forEach(s => {
-    const pts = countMap[s.student_id] ?? 0
-    if (s.points !== pts) {
-      supabase.from('students').update({ points: pts }).eq('student_id', s.student_id)
+  // 벌점 탭 진입 시 DB에서 기존 내역 로드
+  const loadDemerits = useCallback(async () => {
+    const { data } = await supabase.from('demerit_entries').select('*').order('created_at', { ascending: true })
+    if (data) {
+      const entries = (data as DemeritEntry[]).map(row => ({
+        ...row,
+        name: students.find(s => s.student_id === row.student_id)?.name ?? '',
+        room: students.find(s => s.student_id === row.student_id)?.room ?? '',
+      }))
+      setDemeritEntries(entries)
     }
-  })
+  }, [supabase, students])
 
-  setStudents(prev => prev.map(s => ({
-    ...s,
-    points: countMap[s.student_id] ?? 0
-  })))
-}, [demeritEntries, activeTab])
+  useEffect(() => {
+    if (activeTab === 'demerit' && students.length > 0) {
+      loadDemerits()
+    }
+  }, [activeTab, students, loadDemerits])
+
+  // entries 기준으로 학생별 벌점을 DB에 반영하고 화면도 업데이트
+  const syncPoints = useCallback(async (entries: DemeritEntry[]) => {
+    // 학생별 행 수 집계 (= 전체 벌점)
+    const countMap: Record<string, number> = {}
+    entries.forEach(e => {
+      countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
+    })
+
+    // entries에 등장한 학생만 DB 업데이트
+    await Promise.all(
+      Object.entries(countMap).map(([sid, cnt]) =>
+        supabase.from('students').update({ points: cnt }).eq('student_id', sid)
+      )
+    )
+
+    // 화면 즉시 반영 (DB 재조회 없이)
+    setStudents(prev => prev.map(s => {
+      if (s.student_id in countMap) {
+        return { ...s, points: countMap[s.student_id] }
+      }
+      return s
+    }))
+  }, [supabase])
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
@@ -162,6 +184,7 @@ export default function TeacherPage() {
     }
     const next = [...demeritEntries, entry]
     setDemeritEntries(next)
+    syncPoints(next)
     setShowStudentPicker(false)
     setPickerSearch('')
   }
@@ -179,11 +202,41 @@ export default function TeacherPage() {
   }
 
   // 행 삭제 → 벌점 자동 재계산
-function removeEntry(id: string) {
-  const removed = demeritEntries.find(e => e.id === id)
-  const next = demeritEntries.filter(e => e.id !== id)
-  setDemeritEntries(next)
-}
+  function removeEntry(id: string) {
+    const removed = demeritEntries.find(e => e.id === id)
+    const next = demeritEntries.filter(e => e.id !== id)
+    setDemeritEntries(next)
+
+    if (removed) {
+      // 삭제 후 해당 학생의 남은 행 수 계산
+      const remaining = next.filter(e => e.student_id === removed.student_id).length
+      supabase.from('students').update({ points: remaining }).eq('student_id', removed.student_id)
+      setStudents(prev => prev.map(s =>
+        s.student_id === removed.student_id ? { ...s, points: remaining } : s
+      ))
+    }
+  }
+
+  async function saveDemerits() {
+    // 전체 삭제 후 현재 state로 교체
+    await supabase.from('demerit_entries').delete().neq('id', '')
+
+    if (demeritEntries.length > 0) {
+      const rows = demeritEntries.map(e => ({
+        id: e.id,
+        student_id: e.student_id,
+        rule_no: e.rule_no,
+        reason: e.reason,
+        detail: e.detail,
+        process_type: e.process_type,
+        teacher: e.teacher,
+        note: e.note,
+      }))
+      const { error } = await supabase.from('demerit_entries').insert(rows)
+      if (error) { showToast('저장 중 오류가 발생했습니다'); return }
+    }
+    showToast(`${demeritEntries.length}건 저장됐습니다`)
+  }
 
   function updateRuleText(idx: number, val: string) {
     const updated = [...rules]; updated[idx] = val
@@ -324,9 +377,14 @@ function removeEntry(id: string) {
                 <div className={styles.pageSub}>학생의 행 수 = 해당 학생 벌점 (자동 반영)</div>
               </div>
             </div>
-            <button className={styles.btnPrimary} onClick={() => { setShowStudentPicker(true); setPickerSearch('') }}>
-              + 학생 추가
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className={styles.btnPrimary} onClick={() => { setShowStudentPicker(true); setPickerSearch('') }}>
+                + 학생 추가
+              </button>
+              <button className={styles.btnSave} onClick={saveDemerits}>
+                💾 저장
+              </button>
+            </div>
           </div>
 
           <div className={styles.tableWrap}>
