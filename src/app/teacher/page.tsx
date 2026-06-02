@@ -183,20 +183,15 @@ const syncPoints = useCallback(async (entries: DemeritEntry[], affectedIds?: str
   }
 
   // 행 삭제 → 벌점 자동 재계산
-  function removeEntry(id: string) {
-    const removed = demeritEntries.find(e => e.id === id)
-    const next = demeritEntries.filter(e => e.id !== id)
-    setDemeritEntries(next)
+function removeEntry(id: string) {
+  const removed = demeritEntries.find(e => e.id === id)
+  const next = demeritEntries.filter(e => e.id !== id)
+  setDemeritEntries(next)
 
-    if (removed) {
-      // 삭제 후 해당 학생의 남은 행 수 계산
-      const remaining = next.filter(e => e.student_id === removed.student_id).length
-      supabase.from('students').update({ points: remaining }).eq('student_id', removed.student_id)
-      setStudents(prev => prev.map(s =>
-        s.student_id === removed.student_id ? { ...s, points: remaining } : s
-      ))
-    }
+  if (removed) {
+    syncPoints(next, [removed.student_id])
   }
+}
 
   function updateRuleText(idx: number, val: string) {
     const updated = [...rules]; updated[idx] = val
