@@ -82,29 +82,26 @@ export default function TeacherPage() {
     if (teacherId) { loadStudents(); loadRules() }
   }, [teacherId, loadStudents, loadRules])
 
-  // entries 기준으로 학생별 벌점을 DB에 반영하고 화면도 업데이트
-const syncPoints = useCallback(async (entries: DemeritEntry[], affectedIds?: string[]) => {
+  useEffect(() => {
+  if (activeTab !== 'demerit') return
+
   const countMap: Record<string, number> = {}
-  entries.forEach(e => {
+  demeritEntries.forEach(e => {
     countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
   })
 
-  const targetIds = affectedIds ?? Object.keys(countMap)
-
-  await Promise.all(
-    targetIds.map(sid => {
-      const pts = countMap[sid] ?? 0
-      return supabase.from('students').update({ points: pts }).eq('student_id', sid)
-    })
-  )
-
-  setStudents(prev => prev.map(s => {
-    if (targetIds.includes(s.student_id)) {
-      return { ...s, points: countMap[s.student_id] ?? 0 }
+  students.forEach(s => {
+    const pts = countMap[s.student_id] ?? 0
+    if (s.points !== pts) {
+      supabase.from('students').update({ points: pts }).eq('student_id', s.student_id)
     }
-    return s
-  }))
-}, [supabase])
+  })
+
+  setStudents(prev => prev.map(s => ({
+    ...s,
+    points: countMap[s.student_id] ?? 0
+  })))
+}, [demeritEntries, activeTab])
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
@@ -165,7 +162,6 @@ const syncPoints = useCallback(async (entries: DemeritEntry[], affectedIds?: str
     }
     const next = [...demeritEntries, entry]
     setDemeritEntries(next)
-    syncPoints(next)
     setShowStudentPicker(false)
     setPickerSearch('')
   }
@@ -187,10 +183,6 @@ function removeEntry(id: string) {
   const removed = demeritEntries.find(e => e.id === id)
   const next = demeritEntries.filter(e => e.id !== id)
   setDemeritEntries(next)
-
-  if (removed) {
-    syncPoints(next, [removed.student_id])
-  }
 }
 
   function updateRuleText(idx: number, val: string) {
