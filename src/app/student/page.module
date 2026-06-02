@@ -1,0 +1,93 @@
+.page { background: var(--bg); min-height: 100vh; padding: 1.5rem 2rem; max-width: 680px; margin: 0 auto; }
+
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.headerLeft { display: flex; align-items: center; gap: 10px; }
+.logoMark {
+  width: 34px; height: 34px; border-radius: 9px; background: var(--student);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pageTitle { font-size: 17px; font-weight: 700; color: var(--text-main); }
+.pageSub { font-size: 12px; color: var(--text-hint); margin-top: 1px; }
+.logoutBtn {
+  padding: 0 14px; height: 34px; background: none; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--text-hint); font-family: inherit; transition: all .15s;
+}
+.logoutBtn:hover { border-color: var(--danger-border); color: var(--danger); background: var(--danger-light); }
+
+/* 프로필 카드 */
+.profileCard {
+  background: white; border-radius: 14px; border: 1px solid var(--border);
+  padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+}
+.profileTop { display: flex; align-items: center; gap: 14px; margin-bottom: 1.25rem; }
+.avatar {
+  width: 48px; height: 48px; border-radius: 14px; background: var(--student-dim);
+  border: 1.5px solid var(--student-border); display: flex; align-items: center;
+  justify-content: center; font-size: 20px; font-weight: 700; color: var(--student); flex-shrink: 0;
+}
+.profileInfo { flex: 1; min-width: 0; }
+.profileName { font-size: 18px; font-weight: 700; color: var(--text-main); }
+.profileMeta { font-size: 12px; color: var(--text-hint); margin-top: 3px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.dot { color: var(--border2); }
+
+.pointsBadge {
+  flex-shrink: 0; border-radius: 12px; border: 1.5px solid;
+  padding: 8px 16px; text-align: center;
+}
+.pointsNum { font-size: 22px; font-weight: 800; line-height: 1; }
+.pointsLabel { font-size: 11px; font-weight: 600; margin-top: 3px; }
+
+.infoGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 500px) { .infoGrid { grid-template-columns: repeat(2, 1fr); } }
+.infoItem {
+  background: var(--bg); border-radius: 9px; padding: 10px 12px;
+  border: 1px solid var(--border);
+}
+.infoLabel { font-size: 11px; color: var(--text-hint); margin-bottom: 4px; font-weight: 500; }
+.infoVal { font-size: 14px; font-weight: 600; color: var(--text-main); }
+
+/* 벌점 내역 */
+.section { background: white; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+.sectionHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.sectionTitle { font-size: 14px; font-weight: 700; color: var(--text-main); }
+.sectionCount {
+  font-size: 12px; font-weight: 600; color: var(--text-hint);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2px 10px;
+}
+
+.empty { padding: 3rem; text-align: center; }
+.emptyIcon { font-size: 32px; margin-bottom: 10px; }
+.emptyText { font-size: 14px; color: var(--text-hint); }
+
+.demeritList { padding: 8px 0; }
+.demeritItem {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 18px; border-bottom: 1px solid #F2F0EC;
+}
+.demeritItem:last-child { border-bottom: none; }
+.demeritNum {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--danger-light); border: 1px solid var(--danger-border);
+  color: var(--danger); font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.demeritBody { flex: 1; min-width: 0; }
+.demeritReason { font-size: 14px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ruleTag {
+  font-size: 11px; font-weight: 700; background: var(--student-dim);
+  color: var(--student); border: 1px solid var(--student-border);
+  border-radius: 5px; padding: 1px 6px; flex-shrink: 0;
+}
+.demeritDetail { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+.demeritMeta { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.demeritMeta span { font-size: 11px; color: var(--text-hint); }
+.processTag {
+  font-size: 11px; font-weight: 600; background: #FDF3EA;
+  color: var(--warn); border: 1px solid #F8D9B5;
+  border-radius: 5px; padding: 1px 7px;
+}
