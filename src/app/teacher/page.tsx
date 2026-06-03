@@ -224,20 +224,34 @@ export default function TeacherPage() {
 
   // 벌점 추가 시 학생에게 Push 알림 발송
   function sendPushNotify(entry: DemeritEntry, totalPoints: number) {
-    const reason = entry.reason || entry.detail || '규정 위반'
+    const reason = getRuleText(entry.reason) || entry.detail || '규정 위반'
     const enforced = isEnforcedReason(entry.reason)
-    const bodyText = enforced
-      ? `${reason} (누적 ${totalPoints}점) — 기숙사 관리위원회 심의를 거쳐 퇴사 조치 될 수 있습니다`
-      : `${reason} (누적 ${totalPoints}점)`
+
+    // 1차 알림: 벌점 부과 내역
     fetch('/api/push-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         studentId: entry.student_id,
         title: `📋 벌점 알림 — ${entry.name}`,
-        body: bodyText,
+        body: `${reason} (누적 ${totalPoints}점)`,
       }),
     }).catch(err => console.warn('push notify 실패:', err))
+
+    // 2차 알림: 강화 규정일 경우 퇴사 경고 추가 발송
+    if (enforced) {
+      setTimeout(() => {
+        fetch('/api/push-notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentId: entry.student_id,
+            title: `⚠️ 퇴사 경고 — ${entry.name}`,
+            body: '기숙사 관리위원회 심의를 거쳐 퇴사 조치 될 수 있습니다.',
+          }),
+        }).catch(err => console.warn('push enforced notify 실패:', err))
+      }, 2000)
+    }
   }
 
   function updateRuleText(idx: number, val: string) {
