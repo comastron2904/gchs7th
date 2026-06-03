@@ -83,7 +83,9 @@ export default function TeacherPage() {
   }, [teacherId, loadStudents, loadRules])
 
   // 벌점 탭 진입 시 DB에서 기존 내역 로드 (탭 전환 시 1회만 실행)
-  const loadDemerits = useCallback(async (studentList: Student[]) => {
+  const loadDemerits = useCallback(async () => {
+    const { data: studentData } = await supabase.from('students').select('*').order('student_id')
+    const studentList: Student[] = (studentData ?? []) as Student[]
     const { data } = await supabase.from('demerit_entries').select('*').order('created_at', { ascending: true })
     if (data) {
       const entries = (data as DemeritEntry[]).map(row => ({
@@ -92,28 +94,17 @@ export default function TeacherPage() {
         room: studentList.find(s => s.student_id === row.student_id)?.room ?? '',
       }))
       setDemeritEntries(entries)
+      // 학생 벌점도 DB 기준으로 맞춤
+      const countMap: Record<string, number> = {}
+      entries.forEach(e => { countMap[e.student_id] = (countMap[e.student_id] || 0) + 1 })
+      setStudents(studentList.map(s => ({ ...s, points: countMap[s.student_id] ?? 0 })))
     }
   }, [supabase])
 
   useEffect(() => {
-    if (activeTab === 'demerit' && students.length > 0) {
-      loadDemerits(students)
-    }
-  // students를 의존성에서 제외 → 탭 전환 시에만 로드, 행 추가/삭제 시 재로드 방지
+    if (activeTab === 'demerit') loadDemerits()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
-
-  // entries 기준으로 화면의 벌점만 즉시 반영 (DB 저장은 💾 저장 버튼에서만)
-  function syncPointsDisplay(entries: DemeritEntry[]) {
-    const countMap: Record<string, number> = {}
-    entries.forEach(e => {
-      countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
-    })
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      points: countMap[s.student_id] ?? 0,
-    })))
-  }
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
@@ -158,8 +149,8 @@ export default function TeacherPage() {
     showToast('학생이 삭제됐습니다')
   }
 
-  // 학생 선택 → 새 행 추가 (동일 학생 여럿 추가 가능)
-  function pickStudent(s: Student) {
+  // 학생 선택 → 즉시 DB insert + points +1
+  async function pickStudent(s: Student) {
     const entry: DemeritEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       student_id: s.student_id,
@@ -172,103 +163,73 @@ export default function TeacherPage() {
       teacher: teacherId,
       note: '',
     }
-    const next = [...demeritEntries, entry]
-    setDemeritEntries(next)
-    syncPointsDisplay(next)
+    // 화면 즉시 반영
+    setDemeritEntries(prev => [...prev, entry])
+    // DB insert
+    const { error } = await supabase.from('demerit_entries').insert({
+      id: entry.id,
+      student_id: entry.student_id,
+      rule_no: entry.rule_no,
+      reason: entry.reason,
+      detail: entry.detail,
+      process_type: entry.process_type,
+      teacher: entry.teacher,
+      note: entry.note,
+    })
+    if (error) { showToast('행 추가 중 오류가 발생했습니다'); return }
+    // points +1
+    const newPoints = s.points + 1
+    await supabase.from('students').update({ points: newPoints }).eq('student_id', s.student_id)
+    setStudents(prev => prev.map(st => st.student_id === s.student_id ? { ...st, points: newPoints } : st))
+    sendPushNotify(entry, newPoints)
     setShowStudentPicker(false)
     setPickerSearch('')
   }
 
-  function updateEntry(id: string, field: keyof DemeritEntry, value: string | number) {
+  async function updateEntry(id: string, field: keyof DemeritEntry, value: string | number) {
+    let dbUpdate: Record<string, string | number> = { [field]: value }
+    let reason = ''
+    if (field === 'rule_no') {
+      const ruleIdx = (value as number) - 1
+      reason = (value as number) > 0 ? (rules[ruleIdx] ?? '') : ''
+      dbUpdate = { rule_no: value as number, reason }
+    }
+    // 화면 즉시 반영
     setDemeritEntries(prev => prev.map(e => {
       if (e.id !== id) return e
-      const updated = { ...e, [field]: value }
-      if (field === 'rule_no') {
-        const ruleIdx = (value as number) - 1
-        updated.reason = (value as number) > 0 ? (rules[ruleIdx] ?? '') : ''
-      }
-      return updated
+      return field === 'rule_no' ? { ...e, rule_no: value as number, reason } : { ...e, [field]: value }
     }))
+    // DB 즉시 update
+    await supabase.from('demerit_entries').update(dbUpdate).eq('id', id)
   }
 
-  // 행 삭제 → 화면 벌점 즉시 재계산 (DB 반영은 💾 저장 시)
-  function removeEntry(id: string) {
-    const next = demeritEntries.filter(e => e.id !== id)
-    setDemeritEntries(next)
-    syncPointsDisplay(next)
+  // 행 삭제 → 즉시 DB delete + points -1
+  async function removeEntry(id: string) {
+    const target = demeritEntries.find(e => e.id === id)
+    if (!target) return
+    // 화면 즉시 반영
+    setDemeritEntries(prev => prev.filter(e => e.id !== id))
+    // DB delete
+    await supabase.from('demerit_entries').delete().eq('id', id)
+    // points -1 (최소 0)
+    const student = students.find(s => s.student_id === target.student_id)
+    const newPoints = Math.max(0, (student?.points ?? 1) - 1)
+    await supabase.from('students').update({ points: newPoints }).eq('student_id', target.student_id)
+    setStudents(prev => prev.map(s => s.student_id === target.student_id ? { ...s, points: newPoints } : s))
   }
 
-  async function saveDemerits() {
-    // 저장 직전 기존 DB 스냅샷 (신규 추가된 학생 감지용)
-    const { data: prevRows } = await supabase
-      .from('demerit_entries')
-      .select('student_id')
-    const prevStudentIds = new Set((prevRows ?? []).map((r: { student_id: string }) => r.student_id))
-
-    // 전체 삭제 후 현재 state로 교체
-    await supabase.from('demerit_entries').delete().neq('id', '')
-
-    if (demeritEntries.length > 0) {
-      const rows = demeritEntries.map(e => ({
-        id: e.id,
-        student_id: e.student_id,
-        rule_no: e.rule_no,
-        reason: e.reason,
-        detail: e.detail,
-        process_type: e.process_type,
-        teacher: e.teacher,
-        note: e.note,
-      }))
-      const { error } = await supabase.from('demerit_entries').insert(rows)
-      if (error) { showToast('저장 중 오류가 발생했습니다'); return }
-    }
-
-    // entries에 없는 학생 points 일괄 0 초기화
-    const nowStudentIds = new Set(demeritEntries.map(e => e.student_id))
-    await Promise.all(
-      students
-        .filter(s => !nowStudentIds.has(s.student_id) && s.points !== 0)
-        .map(s => supabase.from('students').update({ points: 0 }).eq('student_id', s.student_id))
-    )
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      points: nowStudentIds.has(s.student_id) ? s.points : 0,
-    })))
-
-    // ── 새로 벌점이 추가된 학생들에게 Push 알림 발송 ──
-    // 이번 저장에서 등장하는 학생 ID 집계
-    const nowMap: Record<string, DemeritEntry[]> = {}
-    demeritEntries.forEach(e => {
-      if (!nowMap[e.student_id]) nowMap[e.student_id] = []
-      nowMap[e.student_id].push(e)
-    })
-
-    const notifyTargets = Object.entries(nowMap).filter(([sid, entries]) => {
-      // 이번에 처음 등장하거나 이전보다 건수가 많아진 학생
-      if (!prevStudentIds.has(sid)) return true
-      const prevCount = Array.from(prevStudentIds).filter(s => s === sid).length
-      return entries.length > prevCount
-    })
-
-    // 각 학생에게 비동기 알림 (UI 블로킹 없이)
-    notifyTargets.forEach(([sid, entries]) => {
-      const latest = entries[entries.length - 1]
-      const studentName = latest.name || sid
-      const reason = latest.reason || latest.detail || '규정 위반'
-      const total = entries.length
-
-      fetch('/api/push-notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: sid,
-          title: `📋 벌점 알림 — ${studentName}`,
-          body: `${reason} (누적 ${total}점)`,
-        }),
-      }).catch(err => console.warn('push notify 실패:', err))
-    })
-
-    showToast(`${demeritEntries.length}건 저장됐습니다${notifyTargets.length > 0 ? ` · ${notifyTargets.length}명에게 알림 전송` : ''}`)
+  // 벌점 추가 시 학생에게 Push 알림 발송
+  function sendPushNotify(entry: DemeritEntry, totalPoints: number) {
+    const reason = entry.reason || entry.detail || '규정 위반'
+    fetch('/api/push-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: entry.student_id,
+        title: `📋 벌점 알림 — ${entry.name}`,
+        body: `${reason} (누적 ${totalPoints}점)`,
+      }),
+    }).catch(err => console.warn('push notify 실패:', err))
   }
 
   function updateRuleText(idx: number, val: string) {
@@ -414,9 +375,6 @@ export default function TeacherPage() {
               <button className={styles.btnPrimary} onClick={() => { setShowStudentPicker(true); setPickerSearch('') }}>
                 + 학생 추가
               </button>
-              <button className={styles.btnSave} onClick={saveDemerits}>
-                💾 저장
-              </button>
             </div>
           </div>
 
@@ -454,7 +412,7 @@ export default function TeacherPage() {
                       >
                         <option value={0}></option>
                         {rules.map((r, i) => (
-                          <option key={i} value={i + 1}>{i + 1}조. {r.substring(0, 16)}{r.length > 16 ? '…' : ''}</option>
+                          <option key={i} value={i + 1}>{i + 1}조</option>
                         ))}
                       </select>
                     </td>
