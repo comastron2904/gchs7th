@@ -19,6 +19,7 @@ export default function LoginPage() {
 
   const [tCode, setTCode] = useState('')
   const [tSignupId, setTSignupId] = useState('')
+  const [tSignupName, setTSignupName] = useState('')
   const [tSignupPw, setTSignupPw] = useState('')
   const [tSignupPw2, setTSignupPw2] = useState('')
   const [tSignupError, setTSignupError] = useState('')
@@ -39,25 +40,26 @@ export default function LoginPage() {
 
   async function handleTeacherSignup() {
     setTSignupError('')
-    if (!tCode || !tSignupId || !tSignupPw || !tSignupPw2) { setTSignupError('모든 항목을 입력해 주세요.'); return }
+    if (!tCode || !tSignupId || !tSignupName || !tSignupPw || !tSignupPw2) { setTSignupError('모든 항목을 입력해 주세요.'); return }
     if (tCode !== TEACHER_CODE) { setTSignupError('인증코드가 올바르지 않습니다.'); return }
     if (tSignupPw.length < 8) { setTSignupError('비밀번호는 8자 이상이어야 합니다.'); return }
     if (tSignupPw !== tSignupPw2) { setTSignupError('비밀번호가 일치하지 않습니다.'); return }
     const { data: exists } = await supabase.from('teachers').select('id').eq('id', tSignupId).single()
     if (exists) { setTSignupError('이미 사용 중인 아이디입니다.'); return }
-    const { error } = await supabase.from('teachers').insert({ id: tSignupId, password: tSignupPw })
+    const { error } = await supabase.from('teachers').insert({ id: tSignupId, password: tSignupPw, display_name: tSignupName })
     if (error) { setTSignupError('계정 생성 중 오류가 발생했습니다.'); return }
     alert(`계정이 생성되었습니다! 아이디: ${tSignupId}`)
-    setTSignupId(''); setTSignupPw(''); setTSignupPw2(''); setTCode('')
+    setTSignupId(''); setTSignupName(''); setTSignupPw(''); setTSignupPw2(''); setTCode('')
     setTeacherView('login')
   }
 
   async function handleTeacherLogin() {
     setTLoginError('')
     if (!tLoginId || !tLoginPw) { setTLoginError('아이디와 비밀번호를 입력해 주세요.'); return }
-    const { data } = await supabase.from('teachers').select('password').eq('id', tLoginId).single()
+    const { data } = await supabase.from('teachers').select('password, display_name').eq('id', tLoginId).single()
     if (!data || data.password !== tLoginPw) { setTLoginError('아이디 또는 비밀번호가 올바르지 않습니다.'); return }
     sessionStorage.setItem('dm_teacher', tLoginId)
+    sessionStorage.setItem('dm_teacher_name', data.display_name || tLoginId)
     router.push('/teacher')
   }
 
@@ -142,6 +144,10 @@ export default function LoginPage() {
                 <div className={styles.field}>
                   <label>아이디</label>
                   <input className={styles.teacherInput} value={tSignupId} onChange={e => setTSignupId(e.target.value)} placeholder="영문, 숫자 조합" />
+                </div>
+                <div className={styles.field}>
+                  <label>담당자 이름</label>
+                  <input className={styles.teacherInput} value={tSignupName} onChange={e => setTSignupName(e.target.value)} placeholder="예: 홍길동" />
                 </div>
                 <div className={styles.field}>
                   <label>비밀번호</label>
