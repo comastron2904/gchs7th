@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { DEFAULT_RULES, PROCESS_TYPES } from '@/lib/rules'
+import { DEFAULT_RULES, PROCESS_TYPES, ENFORCED_PREFIX, isEnforced, getRuleText, isEnforcedReason } from '@/lib/rules'
 import styles from './page.module.css'
 
 interface Student {
@@ -105,7 +105,7 @@ export default function TeacherPage() {
   }, [supabase])
 
   useEffect(() => {
-    if (activeTab === 'demerit') loadDemerits()
+    if (activeTab === 'demerit' || activeTab === 'info') loadDemerits()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
@@ -194,6 +194,7 @@ export default function TeacherPage() {
     let reason = ''
     if (field === 'rule_no') {
       const ruleIdx = (value as number) - 1
+      // reason에 규정 원문(prefix 포함) 그대로 저장 → 강화 여부가 reason에 유지됨
       reason = (value as number) > 0 ? (rules[ruleIdx] ?? '') : ''
       dbUpdate = { rule_no: value as number, reason }
     }
@@ -224,21 +225,45 @@ export default function TeacherPage() {
   // 벌점 추가 시 학생에게 Push 알림 발송
   function sendPushNotify(entry: DemeritEntry, totalPoints: number) {
     const reason = entry.reason || entry.detail || '규정 위반'
+    const enforced = isEnforcedReason(entry.reason)
+    const bodyText = enforced
+      ? `${reason} (누적 ${totalPoints}점) — 기숙사 관리위원회 심의를 거쳐 퇴사 조치 될 수 있습니다`
+      : `${reason} (누적 ${totalPoints}점)`
     fetch('/api/push-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         studentId: entry.student_id,
         title: `📋 벌점 알림 — ${entry.name}`,
-        body: `${reason} (누적 ${totalPoints}점)`,
+        body: bodyText,
       }),
     }).catch(err => console.warn('push notify 실패:', err))
   }
 
   function updateRuleText(idx: number, val: string) {
-    const updated = [...rules]; updated[idx] = val
+    // 편집 시 prefix 유지: 강화된 규정이면 prefix 붙여서 저장
+    const current = rules[idx]
+    const wasEnforced = isEnforced(current)
+    const newVal = wasEnforced ? `${ENFORCED_PREFIX} ${val}` : val
+    const updated = [...rules]; updated[idx] = newVal
     setRules(updated); saveRulesToDB(updated)
     showToast(`${idx + 1}조 수정됐습니다`)
+  }
+
+  function toggleEnforced(idx: number) {
+    const current = rules[idx]
+    const currently = isEnforced(current)
+    let updated: string[]
+    if (currently) {
+      // 강화 해제
+      updated = [...rules]; updated[idx] = getRuleText(current)
+      showToast(`${idx + 1}조 강화가 해제됐습니다`)
+    } else {
+      // 강화 적용
+      updated = [...rules]; updated[idx] = `${ENFORCED_PREFIX} ${current}`
+      showToast(`${idx + 1}조가 강화됐습니다 — 즉시 퇴사 가능`)
+    }
+    setRules(updated); saveRulesToDB(updated)
   }
 
   function deleteRule(idx: number) {
@@ -325,10 +350,15 @@ export default function TeacherPage() {
               <tbody>
                 {filtered1.length === 0 ? (
                   <tr className={styles.emptyRow}><td colSpan={7}>등록된 학생이 없습니다</td></tr>
-                ) : filtered1.map(s => (
+                ) : filtered1.map(s => {
+                  const hasEnforced = demeritEntries.some(e => e.student_id === s.student_id && isEnforcedReason(e.reason))
+                  return (
                   <tr key={s.student_id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#7A7880' }}>{s.student_id}</td>
-                    <td style={{ fontWeight: 600 }}>{s.name}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {hasEnforced && <span className={styles.rowEnforcedMark} title="즉시 퇴사 강화 규정 벌점 보유">⚠</span>}
+                      {s.name}
+                    </td>
                     <td>
                       <input className={styles.editable} defaultValue={s.room} placeholder="호실" onBlur={e => updateStudentField(s.student_id, 'room', e.target.value)} />
                     </td>
@@ -351,7 +381,8 @@ export default function TeacherPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -402,10 +433,15 @@ export default function TeacherPage() {
                   <tr className={styles.emptyRow}>
                     <td colSpan={10}>상단 [+ 학생 추가] 버튼으로 학생을 선택하세요</td>
                   </tr>
-                ) : demeritEntries.map(e => (
-                  <tr key={e.id}>
+                ) : demeritEntries.map(e => {
+                  const entryEnforced = isEnforcedReason(e.reason)
+                  return (
+                  <tr key={e.id} className={entryEnforced ? styles.trEnforced : ''}>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#7A7880' }}>{e.student_id}</td>
-                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{e.name}</td>
+                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {entryEnforced && <span className={styles.rowEnforcedMark} title="즉시 퇴사 강화 규정">⚠</span>}
+                      {e.name}
+                    </td>
                     <td style={{ fontSize: 13, color: '#5A5870' }}>{e.room}</td>
                     <td>
                       <select
@@ -415,12 +451,15 @@ export default function TeacherPage() {
                       >
                         <option value={0}></option>
                         {rules.map((r, i) => (
-                          <option key={i} value={i + 1}>{i + 1}조</option>
+                          <option key={i} value={i + 1}>
+                            {isEnforced(r) ? `⚠ ${i + 1}조` : `${i + 1}조`}
+                          </option>
                         ))}
                       </select>
                     </td>
                     <td className={styles.reasonCell} title={e.reason}>
-                      {e.reason || '—'}
+                      {entryEnforced && <span className={styles.rowEnforcedMark}>⚠</span>}
+                      {getRuleText(e.reason) || '—'}
                     </td>
                     <td>
                       <input className={styles.editable} defaultValue={e.detail} placeholder="직접 입력" onBlur={ev => updateEntry(e.id, 'detail', ev.target.value)} />
@@ -442,7 +481,8 @@ export default function TeacherPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -454,22 +494,44 @@ export default function TeacherPage() {
         <>
           <div className={styles.rulesHeader}>
             <div className={styles.rulesTitle}>규정 조항 편집</div>
-            <div className={styles.rulesDesc}>조항 내용을 직접 클릭해서 수정하거나, 하단에서 새 조항을 추가할 수 있습니다.</div>
+            <div className={styles.rulesDesc}>조항 내용을 직접 클릭해서 수정하거나, 하단에서 새 조항을 추가할 수 있습니다. [즉시 퇴사] 버튼으로 해당 규정을 강화할 수 있습니다.</div>
           </div>
           <div className={styles.tableWrap}>
-            {rules.map((r, i) => (
-              <div key={i} className={styles.ruleItem}>
-                <div className={styles.ruleNum}>{i + 1}조</div>
-                <div className={styles.ruleTextWrap}>
-                  <input className={styles.ruleText} defaultValue={r} onBlur={e => updateRuleText(i, e.target.value)} />
+            {rules.map((r, i) => {
+              const enforced = isEnforced(r)
+              const displayText = getRuleText(r)
+              return (
+                <div key={i} className={`${styles.ruleItem} ${enforced ? styles.ruleItemEnforced : ''}`}>
+                  <div className={`${styles.ruleNum} ${enforced ? styles.ruleNumEnforced : ''}`}>
+                    {enforced && <span className={styles.enforcedMark}>⚠</span>}
+                    {i + 1}조
+                  </div>
+                  <div className={styles.ruleTextWrap}>
+                    <input
+                      className={styles.ruleText}
+                      defaultValue={displayText}
+                      key={`${i}-${enforced}`}
+                      onBlur={e => updateRuleText(i, e.target.value)}
+                    />
+                    {enforced && (
+                      <div className={styles.enforcedBadge}>즉시 퇴사 강화 규정 · 벌점 부과 시 퇴사 경고 알림 발송</div>
+                    )}
+                  </div>
+                  <div className={styles.ruleActions}>
+                    <button
+                      className={`${styles.btnEnforce} ${enforced ? styles.btnEnforceActive : ''}`}
+                      onClick={() => toggleEnforced(i)}
+                      title={enforced ? '강화 해제' : '즉시 퇴사 강화'}
+                    >
+                      {enforced ? '강화해제' : '즉시퇴사'}
+                    </button>
+                    <button className={styles.btnIcon} onClick={() => deleteRule(i)} title="삭제">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.ruleActions}>
-                  <button className={styles.btnIcon} onClick={() => deleteRule(i)} title="삭제">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
             <div className={styles.addRuleRow}>
               <input className={styles.addRuleInput} value={newRule} onChange={e => setNewRule(e.target.value)} placeholder="새 조항 내용을 입력하세요..." onKeyDown={e => e.key === 'Enter' && addRule()} />
               <button className={styles.btnAddRule} onClick={addRule}>+ 조항 추가</button>
