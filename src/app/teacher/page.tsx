@@ -82,24 +82,26 @@ export default function TeacherPage() {
     if (teacherId) { loadStudents(); loadRules() }
   }, [teacherId, loadStudents, loadRules])
 
-  // 벌점 탭 진입 시 DB에서 기존 내역 로드
-  const loadDemerits = useCallback(async () => {
+  // 벌점 탭 진입 시 DB에서 기존 내역 로드 (탭 전환 시 1회만 실행)
+  const loadDemerits = useCallback(async (studentList: Student[]) => {
     const { data } = await supabase.from('demerit_entries').select('*').order('created_at', { ascending: true })
     if (data) {
       const entries = (data as DemeritEntry[]).map(row => ({
         ...row,
-        name: students.find(s => s.student_id === row.student_id)?.name ?? '',
-        room: students.find(s => s.student_id === row.student_id)?.room ?? '',
+        name: studentList.find(s => s.student_id === row.student_id)?.name ?? '',
+        room: studentList.find(s => s.student_id === row.student_id)?.room ?? '',
       }))
       setDemeritEntries(entries)
     }
-  }, [supabase, students])
+  }, [supabase])
 
   useEffect(() => {
     if (activeTab === 'demerit' && students.length > 0) {
-      loadDemerits()
+      loadDemerits(students)
     }
-  }, [activeTab, students, loadDemerits])
+  // students를 의존성에서 제외 → 탭 전환 시에만 로드, 행 추가/삭제 시 재로드 방지
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   // entries 기준으로 화면의 벌점만 즉시 반영 (DB 저장은 💾 저장 버튼에서만)
   function syncPointsDisplay(entries: DemeritEntry[]) {
