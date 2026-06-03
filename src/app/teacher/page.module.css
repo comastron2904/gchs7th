@@ -146,7 +146,7 @@ select.editable { cursor: pointer; font-size: 12px; }
 .rulesTitle { font-size: 15px; font-weight: 700; color: var(--text-main); }
 .rulesDesc { font-size: 12px; color: var(--text-hint); margin-top: 4px; }
 .ruleItem {
-  display: grid; grid-template-columns: 56px 1fr 44px;
+  display: grid; grid-template-columns: 56px 1fr 90px;
   align-items: center; border-bottom: 1px solid #F2F0EC;
 }
 .ruleItem:last-child { border-bottom: none; }
@@ -161,12 +161,46 @@ select.editable { cursor: pointer; font-size: 12px; }
   width: 100%; background: transparent; font-family: inherit; line-height: 1.5;
 }
 .ruleText:focus { background: var(--student-dim); border-radius: 6px; padding: 4px 8px; }
-.ruleActions { padding: 8px 10px; display: flex; justify-content: center; }
+.ruleActions { padding: 8px 10px; display: flex; gap: 5px; justify-content: center; align-items: center; }
 .btnIcon {
   width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
   background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-hint);
 }
 .btnIcon:hover { background: var(--danger-light); border-color: var(--danger-border); color: var(--danger); }
+
+/* 즉시 퇴사 강화 버튼 */
+.btnEnforce {
+  padding: 0 8px; height: 26px; border-radius: 6px; border: 1.5px solid #D97706;
+  background: white; cursor: pointer; font-size: 10px; font-weight: 700;
+  color: #D97706; font-family: inherit; white-space: nowrap; transition: all .15s;
+}
+.btnEnforce:hover { background: #FEF3C7; }
+.btnEnforceActive {
+  background: #D97706; color: white; border-color: #D97706;
+}
+.btnEnforceActive:hover { background: #B45309; border-color: #B45309; }
+
+/* 강화된 규정 행 스타일 */
+.ruleItemEnforced {
+  background: #FFFBEB;
+}
+.ruleNumEnforced {
+  background: #FEF3C7 !important; color: #D97706 !important;
+}
+.enforcedMark {
+  display: inline-block; margin-right: 3px; font-size: 10px; color: #D97706;
+}
+.enforcedBadge {
+  font-size: 10px; color: #D97706; font-weight: 600; margin-top: 3px;
+  padding: 2px 6px; background: #FEF3C7; border-radius: 4px; display: inline-block;
+}
+
+/* 벌점 관리 / 학생 관리 행 강화 표시 */
+.trEnforced td { background: #FFFBEB !important; }
+.trEnforced:hover td { background: #FEF3C7 !important; }
+.rowEnforcedMark {
+  display: inline-block; margin-right: 4px; font-size: 12px; color: #D97706; font-weight: 700;
+}
 .addRuleRow {
   display: flex; gap: 8px; padding: 12px 14px;
   background: #F9F8F5; border-top: 1px solid var(--border);
