@@ -109,21 +109,20 @@ export default function TeacherPage() {
       countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
     })
 
-    // entries에 등장한 학생만 DB 업데이트
+    // entries에 등장한 학생은 집계된 점수로, 나머지는 0으로 일괄 업데이트
     await Promise.all(
-      Object.entries(countMap).map(([sid, cnt]) =>
-        supabase.from('students').update({ points: cnt }).eq('student_id', sid)
-      )
+      students.map(s => {
+        const newPoints = countMap[s.student_id] ?? 0
+        return supabase.from('students').update({ points: newPoints }).eq('student_id', s.student_id)
+      })
     )
 
     // 화면 즉시 반영 (DB 재조회 없이)
-    setStudents(prev => prev.map(s => {
-      if (s.student_id in countMap) {
-        return { ...s, points: countMap[s.student_id] }
-      }
-      return s
-    }))
-  }, [supabase])
+    setStudents(prev => prev.map(s => ({
+      ...s,
+      points: countMap[s.student_id] ?? 0,
+    })))
+  }, [supabase, students])
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
@@ -241,6 +240,18 @@ export default function TeacherPage() {
       const { error } = await supabase.from('demerit_entries').insert(rows)
       if (error) { showToast('저장 중 오류가 발생했습니다'); return }
     }
+
+    // entries에 없는 학생 points 일괄 0 초기화
+    const nowStudentIds = new Set(demeritEntries.map(e => e.student_id))
+    await Promise.all(
+      students
+        .filter(s => !nowStudentIds.has(s.student_id) && s.points !== 0)
+        .map(s => supabase.from('students').update({ points: 0 }).eq('student_id', s.student_id))
+    )
+    setStudents(prev => prev.map(s => ({
+      ...s,
+      points: nowStudentIds.has(s.student_id) ? s.points : 0,
+    })))
 
     // ── 새로 벌점이 추가된 학생들에게 Push 알림 발송 ──
     // 이번 저장에서 등장하는 학생 ID 집계
