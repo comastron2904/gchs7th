@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { isEnforcedReason, getRuleText } from '@/lib/rules'
 import styles from './page.module.css'
 
 interface Student {
@@ -287,14 +288,25 @@ export default function StudentPage() {
           </div>
         ) : (
           <div className={styles.demeritList}>
-            {demerits.map((d, i) => (
-              <div key={d.id} className={styles.demeritItem}>
+            {demerits.map((d, i) => {
+              const enforced = isEnforcedReason(d.reason)
+              return (
+              <div key={d.id} className={`${styles.demeritItem} ${enforced ? styles.demeritItemEnforced : ''}`}>
                 <div className={styles.demeritNum}>{demerits.length - i}</div>
                 <div className={styles.demeritBody}>
                   <div className={styles.demeritReason}>
-                    {d.rule_no > 0 && <span className={styles.ruleTag}>{d.rule_no}조</span>}
-                    {d.reason || '사유 미입력'}
+                    {d.rule_no > 0 && (
+                      <span className={`${styles.ruleTag} ${enforced ? styles.ruleTagEnforced : ''}`}>
+                        {enforced && '⚠ '}{d.rule_no}조
+                      </span>
+                    )}
+                    {getRuleText(d.reason) || '사유 미입력'}
                   </div>
+                  {enforced && (
+                    <div className={styles.enforcedWarning}>
+                      ⚠ 기숙사 관리위원회 심의를 거쳐 퇴사 조치 될 수 있습니다
+                    </div>
+                  )}
                   {d.detail && <div className={styles.demeritDetail}>{d.detail}</div>}
                   <div className={styles.demeritMeta}>
                     {d.process_type && <span className={styles.processTag}>{d.process_type}</span>}
@@ -303,7 +315,8 @@ export default function StudentPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
