@@ -101,28 +101,17 @@ export default function TeacherPage() {
     }
   }, [activeTab, students, loadDemerits])
 
-  // entries 기준으로 학생별 벌점을 DB에 반영하고 화면도 업데이트
-  const syncPoints = useCallback(async (entries: DemeritEntry[]) => {
-    // 학생별 행 수 집계 (= 전체 벌점)
+  // entries 기준으로 화면의 벌점만 즉시 반영 (DB 저장은 💾 저장 버튼에서만)
+  function syncPointsDisplay(entries: DemeritEntry[]) {
     const countMap: Record<string, number> = {}
     entries.forEach(e => {
       countMap[e.student_id] = (countMap[e.student_id] || 0) + 1
     })
-
-    // entries에 등장한 학생은 집계된 점수로, 나머지는 0으로 일괄 업데이트
-    await Promise.all(
-      students.map(s => {
-        const newPoints = countMap[s.student_id] ?? 0
-        return supabase.from('students').update({ points: newPoints }).eq('student_id', s.student_id)
-      })
-    )
-
-    // 화면 즉시 반영 (DB 재조회 없이)
     setStudents(prev => prev.map(s => ({
       ...s,
       points: countMap[s.student_id] ?? 0,
     })))
-  }, [supabase, students])
+  }
 
   async function saveRulesToDB(newRules: string[]) {
     await supabase.from('demerit_rules_custom').upsert({ id: 1, rules: newRules })
@@ -183,7 +172,7 @@ export default function TeacherPage() {
     }
     const next = [...demeritEntries, entry]
     setDemeritEntries(next)
-    syncPoints(next)
+    syncPointsDisplay(next)
     setShowStudentPicker(false)
     setPickerSearch('')
   }
@@ -200,20 +189,11 @@ export default function TeacherPage() {
     }))
   }
 
-  // 행 삭제 → 벌점 자동 재계산
+  // 행 삭제 → 화면 벌점 즉시 재계산 (DB 반영은 💾 저장 시)
   function removeEntry(id: string) {
-    const removed = demeritEntries.find(e => e.id === id)
     const next = demeritEntries.filter(e => e.id !== id)
     setDemeritEntries(next)
-
-    if (removed) {
-      // 삭제 후 해당 학생의 남은 행 수 계산
-      const remaining = next.filter(e => e.student_id === removed.student_id).length
-      supabase.from('students').update({ points: remaining }).eq('student_id', removed.student_id)
-      setStudents(prev => prev.map(s =>
-        s.student_id === removed.student_id ? { ...s, points: remaining } : s
-      ))
-    }
+    syncPointsDisplay(next)
   }
 
   async function saveDemerits() {
