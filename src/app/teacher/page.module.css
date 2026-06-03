@@ -146,7 +146,7 @@ select.editable { cursor: pointer; font-size: 12px; }
 .rulesTitle { font-size: 15px; font-weight: 700; color: var(--text-main); }
 .rulesDesc { font-size: 12px; color: var(--text-hint); margin-top: 4px; }
 .ruleItem {
-  display: grid; grid-template-columns: 56px 1fr 90px;
+  display: grid; grid-template-columns: 56px 1fr 140px;
   align-items: center; border-bottom: 1px solid #F2F0EC;
 }
 .ruleItem:last-child { border-bottom: none; }
@@ -161,18 +161,20 @@ select.editable { cursor: pointer; font-size: 12px; }
   width: 100%; background: transparent; font-family: inherit; line-height: 1.5;
 }
 .ruleText:focus { background: var(--student-dim); border-radius: 6px; padding: 4px 8px; }
-.ruleActions { padding: 8px 10px; display: flex; gap: 5px; justify-content: center; align-items: center; }
+.ruleActions { padding: 8px 12px; display: flex; gap: 8px; justify-content: center; align-items: center; }
 .btnIcon {
-  width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
   background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-hint);
+  flex-shrink: 0;
 }
 .btnIcon:hover { background: var(--danger-light); border-color: var(--danger-border); color: var(--danger); }
 
 /* 즉시 퇴사 강화 버튼 */
 .btnEnforce {
-  padding: 0 8px; height: 26px; border-radius: 6px; border: 1.5px solid #D97706;
-  background: white; cursor: pointer; font-size: 10px; font-weight: 700;
+  padding: 0 12px; height: 36px; border-radius: 8px; border: 1.5px solid #D97706;
+  background: white; cursor: pointer; font-size: 12px; font-weight: 700;
   color: #D97706; font-family: inherit; white-space: nowrap; transition: all .15s;
+  flex-shrink: 0;
 }
 .btnEnforce:hover { background: #FEF3C7; }
 .btnEnforceActive {
