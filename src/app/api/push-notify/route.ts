@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWebPush } from '@/lib/webpush'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 // POST /api/push-notify
 // body: { studentId: string, title: string, body: string }
 // 해당 학생의 최근 등록 기기 구독에만 알림 전송
 export async function POST(req: NextRequest) {
+  // 환경변수는 런타임에만 접근 (빌드 시 Top-level 실행 방지)
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   try {
     const { studentId, title, body } = await req.json()
 
