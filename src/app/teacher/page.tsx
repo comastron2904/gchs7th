@@ -33,6 +33,7 @@ export default function TeacherPage() {
 
   const [activeTab, setActiveTab] = useState<'info' | 'demerit' | 'rules'>('info')
   const [teacherId, setTeacherId] = useState('')
+  const [teacherName, setTeacherName] = useState('')
   const [students, setStudents] = useState<Student[]>([])
   const [rules, setRules] = useState<string[]>(DEFAULT_RULES)
   const [search1, setSearch1] = useState('')
@@ -64,6 +65,8 @@ export default function TeacherPage() {
     const tid = sessionStorage.getItem('dm_teacher')
     if (!tid) { router.push('/'); return }
     setTeacherId(tid)
+    const tname = sessionStorage.getItem('dm_teacher_name')
+    setTeacherName(tname || tid)
   }, [router])
 
   const loadStudents = useCallback(async () => {
@@ -160,7 +163,7 @@ export default function TeacherPage() {
       reason: '',
       detail: '',
       process_type: '',
-      teacher: teacherId,
+      teacher: teacherName,
       note: '',
     }
     // 화면 즉시 반영
@@ -289,7 +292,7 @@ export default function TeacherPage() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className={styles.btnPrimary} onClick={() => setShowAdd(true)}>+ 학생 추가</button>
-              <button className={styles.logoutBtn} onClick={() => { sessionStorage.removeItem('dm_teacher'); router.push('/') }}>로그아웃</button>
+              <button className={styles.logoutBtn} onClick={() => { sessionStorage.removeItem('dm_teacher'); sessionStorage.removeItem('dm_teacher_name'); router.push('/') }}>로그아웃</button>
             </div>
           </div>
 
