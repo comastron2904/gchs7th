@@ -184,7 +184,7 @@ export default function TeacherPage() {
     const newPoints = s.points + 1
     await supabase.from('students').update({ points: newPoints }).eq('student_id', s.student_id)
     setStudents(prev => prev.map(st => st.student_id === s.student_id ? { ...st, points: newPoints } : st))
-    sendPushNotify(entry, newPoints)
+    // 알림은 규정 조항(rule_no) 선택 시점에 updateEntry에서 발송
     setShowStudentPicker(false)
     setPickerSearch('')
   }
@@ -205,6 +205,16 @@ export default function TeacherPage() {
     }))
     // DB 즉시 update
     await supabase.from('demerit_entries').update(dbUpdate).eq('id', id)
+
+    // rule_no 선택 시 알림 발송 (학생 선택 직후엔 rule_no=0이므로 여기서 처리)
+    if (field === 'rule_no' && (value as number) > 0) {
+      const entry = demeritEntries.find(e => e.id === id)
+      if (entry) {
+        const student = students.find(s => s.student_id === entry.student_id)
+        const totalPoints = student?.points ?? 1
+        sendPushNotify({ ...entry, reason }, totalPoints)
+      }
+    }
   }
 
   // 행 삭제 → 즉시 DB delete + points -1
