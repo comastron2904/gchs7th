@@ -29,3 +29,21 @@ export const DEFAULT_RULES: string[] = [
 ]
 
 export const PROCESS_TYPES = ['', '경고', '주의', '봉사', '귀가조치']
+
+/** 강화 규정 prefix — DB에 저장될 때 텍스트 앞에 붙는 마커 */
+export const ENFORCED_PREFIX = '⚠️'
+
+/** 규정 텍스트가 강화 규정인지 확인 */
+export function isEnforced(ruleText: string): boolean {
+  return ruleText.startsWith(ENFORCED_PREFIX)
+}
+
+/** 강화 규정에서 실제 텍스트만 반환 */
+export function getRuleText(ruleText: string): string {
+  return isEnforced(ruleText) ? ruleText.slice(ENFORCED_PREFIX.length).trimStart() : ruleText
+}
+
+/** reason 문자열이 강화 규정으로 부과된 것인지 확인 */
+export function isEnforcedReason(reason: string): boolean {
+  return reason.startsWith(ENFORCED_PREFIX)
+}
