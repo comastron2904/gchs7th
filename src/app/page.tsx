@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import styles from './page.module.css'
 
-const TEACHER_CODE = process.env.NEXT_PUBLIC_TEACHER_CODE || '17561'
+const TEACHER_CODE = process.env.NEXT_PUBLIC_TEACHER_CODE || '2026'
 type TeacherView = 'choose' | 'signup' | 'login'
 
 export default function LoginPage() {
